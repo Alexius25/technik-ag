@@ -24,7 +24,14 @@ npx auth@latest generate
 npx auth@latest migrate
 ```
 
-3. Lokalen Server starten:
+3. Drizzle ORM einrichten:
+
+```bash
+npx drizzle-kit generate
+npx drizzle-kit migrate
+``` 
+
+4. Lokalen Server starten:
 
 ```bash
 npm run dev

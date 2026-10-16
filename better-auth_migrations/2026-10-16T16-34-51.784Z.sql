@@ -1,0 +1,1 @@
+alter table "user" add column "mustChangePassword" integer default 1 not null;
