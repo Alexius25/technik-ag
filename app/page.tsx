@@ -1,17 +1,29 @@
-import { Button } from "@/components/ui/button"
+import Header from "@/components/Header"
+import Image from "next/image"
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
+    <div className="min-h-screen bg-background">
+      <Header />
+
+      {/* Multiple pictures (16:9) in a row, scrolls horizontally (auto) */}
+      <div className="mx-4 flex items-center justify-between gap-8 overflow-x-auto rounded-lg bg-accent px-8 py-4">
+        <div className="relative aspect-[16/9] h-80 flex-shrink-0 rounded-lg bg-gray-200">
+          <Image
+            src="/main_image.jpg"
+            alt="Picture 1"
+            fill
+            className="rounded-lg object-cover"
+          />
         </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
+
+        <div className="relative aspect-[16/9] h-80 flex-shrink-0 rounded-lg bg-gray-200">
+          <Image
+            src="/main_image2.png"
+            alt="Picture 2"
+            fill
+            className="rounded-lg object-cover"
+          />
         </div>
       </div>
     </div>
