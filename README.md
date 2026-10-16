@@ -1,21 +1,31 @@
-# Next.js template
+# Technik AG Webseite
 
-This is a Next.js template with shadcn/ui.
+Dies ist die Git-Repo für die Webseite der Technik AG des Solitude-Gymnasiums Stuttgart Weilimdorf.
 
-## Adding components
 
-To add components to your app, run the following command:
+## Stack
+- Next.js
+- Tailwind CSS
+- TypeScript
+- Better Auth
+
+## Installation
+
+1. Abhängigkeiten installieren:
 
 ```bash
-npx shadcn@latest add button
+npm install
 ```
 
-This will place the ui components in the `components` directory.
+2. DB mit Better Auth einrichten:
 
-## Using components
+```bash
+npx auth@latest generate
+npx auth@latest migrate
+```
 
-To use the components in your app, import them as follows:
+3. Lokalen Server starten:
 
-```tsx
-import { Button } from "@/components/ui/button";
+```bash
+npm run dev
 ```
