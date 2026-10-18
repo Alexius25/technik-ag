@@ -24,4 +24,5 @@
   "registries": {
     "@fullcalendar": "https://shadcn-registry.fullcalendar.io/{name}.json"
   }
+
 }
