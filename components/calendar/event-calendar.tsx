@@ -1,20 +1,24 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
 import {
     CalendarDays,
-    ChevronLeft,
-    ChevronRight,
     Clock3,
     MapPin,
-    Plus,
     Pencil,
     X,
 } from "lucide-react";
-import { dateKey, shiftDate, startOfWeek, formatDate } from "@/lib/date-utils";
-import { EventCategory, CalendarEvent, weekdays } from "./types";
+
+import {
+    dateKey,
+    shiftDate,
+    startOfWeek,
+    formatDate,
+} from "@/lib/date-utils";
+
+import { EventCategory, CalendarEvent } from "./types";
 import { categoryDots, categoryStyles } from "./style";
-import { eventCard } from "./event-card";
 import CalendarToolbar from "./toolbar";
 import CalendarMonthView from "./month-view";
 import CalendarWeekView from "./week-view";
@@ -39,7 +43,8 @@ function createInitialEvents(): CalendarEvent[] {
             id: 1,
             title: "Team-Meeting",
             description: "Wöchentliche Teamabstimmung.",
-            date: date(0),
+            startDate: date(0),
+            endDate: date(0),
             start: "09:00",
             end: "10:00",
             location: "Besprechungsraum A",
@@ -49,7 +54,8 @@ function createInitialEvents(): CalendarEvent[] {
             id: 2,
             title: "Projektplanung",
             description: "Planung der nächsten Projektphase.",
-            date: date(1),
+            startDate: date(1),
+            endDate: date(1),
             start: "11:00",
             end: "12:30",
             location: "Online",
@@ -59,7 +65,8 @@ function createInitialEvents(): CalendarEvent[] {
             id: 3,
             title: "Abgabe Konzept",
             description: "Abgabe des finalen Konzepts.",
-            date: date(2),
+            startDate: date(2),
+            endDate: date(2),
             start: "15:00",
             end: "16:00",
             location: "Arbeitsbereich",
@@ -69,7 +76,8 @@ function createInitialEvents(): CalendarEvent[] {
             id: 4,
             title: "Feedbackrunde",
             description: "Besprechung der bisherigen Ergebnisse.",
-            date: date(4),
+            startDate: date(4),
+            endDate: date(4),
             start: "10:00",
             end: "11:00",
             location: "Besprechungsraum B",
@@ -79,31 +87,41 @@ function createInitialEvents(): CalendarEvent[] {
             id: 5,
             title: "Projekt-Review",
             description: "Projektfortschritt und nächste Schritte.",
-            date: date(7),
+            startDate: date(7),
+            endDate: date(7),
             start: "09:30",
             end: "10:30",
             location: "Online",
+            category: "Projekt",
+        },
+        {
+            id: 6,
+            title: "Projektwoche",
+            description: "Planung und Umsetzung des Projekts.",
+            startDate: date(10),
+            endDate: date(16),
+            start: "09:00",
+            end: "17:00",
+            location: "Büro",
             category: "Projekt",
         },
     ];
 }
 
 export function EventCalendar() {
-    const [events, setEvents] = useState<CalendarEvent[]>(() => {
-        const initialEvents = createInitialEvents();
+    const [events, setEvents] = useState<CalendarEvent[]>(() =>
+        createInitialEvents()
+    );
 
-        console.log("[EventCalendar] Initiale Termine:", initialEvents);
-
-        return initialEvents;
-    });
     const [currentDate, setCurrentDate] = useState(() => new Date());
     const [view, setView] = useState<"month" | "week" | "list">("month");
-    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-        null
-    );
-    const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(
-        null
-    );
+
+    const [selectedEvent, setSelectedEvent] =
+        useState<CalendarEvent | null>(null);
+
+    const [editingEvent, setEditingEvent] =
+        useState<CalendarEvent | null>(null);
+
     const [showForm, setShowForm] = useState(false);
     const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
 
@@ -118,40 +136,56 @@ export function EventCalendar() {
             currentDate.getMonth(),
             1
         );
+
         const mondayOffset = (first.getDay() + 6) % 7;
         const gridStart = shiftDate(first, -mondayOffset);
 
-        return Array.from({ length: 42 }, (_, i) => shiftDate(gridStart, i));
+        return Array.from(
+            { length: 42 },
+            (_, i) => shiftDate(gridStart, i)
+        );
     }, [currentDate]);
 
     const weekDays = useMemo(() => {
         const start = startOfWeek(currentDate);
-        return Array.from({ length: 7 }, (_, i) => shiftDate(start, i));
+
+        return Array.from(
+            { length: 7 },
+            (_, i) => shiftDate(start, i)
+        );
     }, [currentDate]);
 
     const sortedEvents = useMemo(
         () =>
             [...events].sort(
                 (a, b) =>
-                    a.date.localeCompare(b.date) ||
+                    a.startDate.localeCompare(b.startDate) ||
                     a.start.localeCompare(b.start)
             ),
         [events]
     );
 
-    const eventsForDate = (date: Date) =>
-        sortedEvents.filter((event) => event.date === dateKey(date));
+    // A multi-day event belongs to every date between its start and end.
+    const eventsForDate = (date: Date) => {
+        const key = dateKey(date);
+
+        return sortedEvents.filter(
+            (event) =>
+                event.startDate <= key &&
+                event.endDate >= key
+        );
+    };
 
     const navigate = (direction: number) => {
         setCurrentDate((date) => {
             const next = new Date(date);
-            if (view === "week") {
-                next.setDate(next.getDate() + direction * 7);
-            } else if (view === "list") {
+
+            if (view === "week" || view === "list") {
                 next.setDate(next.getDate() + direction * 7);
             } else {
                 next.setMonth(next.getMonth() + direction);
             }
+
             return next;
         });
     };
@@ -164,11 +198,26 @@ export function EventCalendar() {
     };
 
     const saveEvent = (formData: FormData) => {
+        const startDate = String(
+            formData.get("startDate") ?? selectedDate
+        );
+
+        const endDate = String(
+            formData.get("endDate") ?? startDate
+        );
+
+        if (endDate < startDate) {
+            return;
+        }
+
         const event: CalendarEvent = {
             id: editingEvent?.id ?? Date.now(),
             title: String(formData.get("title") ?? "").trim(),
-            description: String(formData.get("description") ?? "").trim(),
-            date: String(formData.get("date") ?? selectedDate),
+            description: String(
+                formData.get("description") ?? ""
+            ).trim(),
+            startDate,
+            endDate,
             start: String(formData.get("start") ?? "09:00"),
             end: String(formData.get("end") ?? "10:00"),
             location: String(formData.get("location") ?? "").trim(),
@@ -181,7 +230,9 @@ export function EventCalendar() {
 
         setEvents((previous) =>
             editingEvent
-                ? previous.map((item) => (item.id === event.id ? event : item))
+                ? previous.map((item) =>
+                      item.id === event.id ? event : item
+                  )
                 : [...previous, event]
         );
 
@@ -193,13 +244,30 @@ export function EventCalendar() {
     const openEdit = (event: CalendarEvent) => {
         setEditingEvent(event);
         setSelectedEvent(null);
-        setSelectedDate(event.date);
+        setSelectedDate(event.startDate);
         setShowForm(true);
+    };
+
+    const formatEventDate = (date: string) =>
+        formatDate(new Date(`${date}T12:00:00`), {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+        });
+
+    const formatEventRange = (event: CalendarEvent) => {
+        if (event.startDate === event.endDate) {
+            return formatEventDate(event.startDate);
+        }
+
+        return `${formatEventDate(event.startDate)} – ${formatEventDate(
+            event.endDate
+        )}`;
     };
 
     return (
         <div className="space-y-5">
-            {/* Toolbar */}
             <CalendarToolbar
                 currentDate={currentDate}
                 setCurrentDate={setCurrentDate}
@@ -213,6 +281,7 @@ export function EventCalendar() {
                 <h3 className="text-xl font-semibold capitalize">
                     {monthLabel}
                 </h3>
+
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                     {(
                         [
@@ -235,43 +304,41 @@ export function EventCalendar() {
                 </div>
             </div>
 
-            {/* Month view */}
-			{view === "month" && (
-				<CalendarMonthView
-					monthDays={monthDays}
-					currentDate={currentDate}
-					eventsForDate={eventsForDate}
-					setSelectedEvent={setSelectedEvent}
-					openNewEvent={openNewEvent}
-				/>
-			)}
-
-            {/* Week view */}
-            {view === "week" && (
-				<CalendarWeekView
-					weekDays={weekDays}
-					eventsForDate={eventsForDate}
-					setSelectedEvent={setSelectedEvent}
-					openNewEvent={openNewEvent}
-				/>
+            {view === "month" && (
+                <CalendarMonthView
+                    monthDays={monthDays}
+                    currentDate={currentDate}
+                    eventsForDate={eventsForDate}
+                    setSelectedEvent={setSelectedEvent}
+                    openNewEvent={openNewEvent}
+                />
             )}
 
-            {/* List view */}
+            {view === "week" && (
+                <CalendarWeekView
+                    weekDays={weekDays}
+                    eventsForDate={eventsForDate}
+                    setSelectedEvent={setSelectedEvent}
+                    openNewEvent={openNewEvent}
+                />
+            )}
+
             {view === "list" && (
-				<CalendarListView
-					sortedEvents={sortedEvents}
-					setSelectedEvent={setSelectedEvent}
-					currentDate={currentDate}
-				/>
-			)}
-			
+                <CalendarListView
+                    sortedEvents={sortedEvents}
+                    setSelectedEvent={setSelectedEvent}
+                    currentDate={currentDate}
+                />
+            )}
+
             {/* Event details */}
             {selectedEvent && (
                 <div
                     className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
                     onMouseDown={(e) => {
-                        if (e.target === e.currentTarget)
+                        if (e.target === e.currentTarget) {
                             setSelectedEvent(null);
+                        }
                     }}
                 >
                     <div
@@ -283,10 +350,13 @@ export function EventCalendar() {
                         <div className="flex items-start justify-between gap-4">
                             <div className="space-y-2">
                                 <span
-                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${categoryStyles[selectedEvent.category]}`}
+                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                                        categoryStyles[selectedEvent.category]
+                                    }`}
                                 >
                                     {selectedEvent.category}
                                 </span>
+
                                 <h3
                                     id="event-title"
                                     className="text-xl font-semibold"
@@ -294,6 +364,7 @@ export function EventCalendar() {
                                     {selectedEvent.title}
                                 </h3>
                             </div>
+
                             <button
                                 type="button"
                                 aria-label="Schließen"
@@ -305,24 +376,18 @@ export function EventCalendar() {
                         </div>
 
                         <div className="space-y-3 text-sm">
-                            <div className="flex items-center gap-3">
-                                <CalendarDays className="size-4 text-muted-foreground" />
-                                {formatDate(
-                                    new Date(`${selectedEvent.date}T12:00:00`),
-                                    {
-                                        weekday: "long",
-                                        day: "numeric",
-                                        month: "long",
-                                        year: "numeric",
-                                    }
-                                )}
+                            <div className="flex items-start gap-3">
+                                <CalendarDays className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                <span>{formatEventRange(selectedEvent)}</span>
                             </div>
+
                             <div className="flex items-center gap-3">
-                                <Clock3 className="size-4 text-muted-foreground" />
+                                <Clock3 className="size-4 shrink-0 text-muted-foreground" />
                                 {selectedEvent.start} – {selectedEvent.end} Uhr
                             </div>
+
                             <div className="flex items-center gap-3">
-                                <MapPin className="size-4 text-muted-foreground" />
+                                <MapPin className="size-4 shrink-0 text-muted-foreground" />
                                 {selectedEvent.location || "Kein Ort angegeben"}
                             </div>
                         </div>
@@ -341,6 +406,7 @@ export function EventCalendar() {
                             >
                                 Schließen
                             </button>
+
                             <button
                                 type="button"
                                 onClick={() => openEdit(selectedEvent)}
@@ -359,7 +425,9 @@ export function EventCalendar() {
                 <div
                     className="fixed inset-0 z-[60] flex items-end justify-center overflow-y-auto bg-black/40 p-0 sm:items-center sm:p-4"
                     onMouseDown={(e) => {
-                        if (e.target === e.currentTarget) setShowForm(false);
+                        if (e.target === e.currentTarget) {
+                            setShowForm(false);
+                        }
                     }}
                 >
                     <form
@@ -374,10 +442,12 @@ export function EventCalendar() {
                                         ? "Termin bearbeiten"
                                         : "Neuer Termin"}
                                 </h3>
+
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     Änderungen gelten nur in dieser Sitzung.
                                 </p>
                             </div>
+
                             <button
                                 type="button"
                                 aria-label="Schließen"
@@ -395,6 +465,7 @@ export function EventCalendar() {
                             >
                                 Titel
                             </label>
+
                             <input
                                 id="event-title-input"
                                 name="title"
@@ -412,6 +483,7 @@ export function EventCalendar() {
                             >
                                 Beschreibung
                             </label>
+
                             <textarea
                                 id="event-description"
                                 name="description"
@@ -425,22 +497,46 @@ export function EventCalendar() {
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <label
-                                    htmlFor="event-date"
+                                    htmlFor="event-start-date"
                                     className="text-sm font-medium"
                                 >
-                                    Datum
+                                    Startdatum
                                 </label>
+
                                 <input
-                                    id="event-date"
-                                    name="date"
+                                    id="event-start-date"
+                                    name="startDate"
                                     type="date"
                                     required
                                     defaultValue={
-                                        editingEvent?.date ?? selectedDate
+                                        editingEvent?.startDate ?? selectedDate
                                     }
                                     className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                                 />
                             </div>
+
+                            <div className="space-y-1.5">
+                                <label
+                                    htmlFor="event-end-date"
+                                    className="text-sm font-medium"
+                                >
+                                    Enddatum
+                                </label>
+
+                                <input
+                                    id="event-end-date"
+                                    name="endDate"
+                                    type="date"
+                                    required
+                                    min={editingEvent?.startDate ?? selectedDate}
+                                    defaultValue={
+                                        editingEvent?.endDate ??
+                                        selectedDate
+                                    }
+                                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                                />
+                            </div>
+
                             <div className="space-y-1.5">
                                 <label
                                     htmlFor="event-category"
@@ -448,6 +544,7 @@ export function EventCalendar() {
                                 >
                                     Kategorie
                                 </label>
+
                                 <select
                                     id="event-category"
                                     name="category"
@@ -462,6 +559,7 @@ export function EventCalendar() {
                                     <option value="Sonstiges">Sonstiges</option>
                                 </select>
                             </div>
+
                             <div className="space-y-1.5">
                                 <label
                                     htmlFor="event-start"
@@ -469,17 +567,17 @@ export function EventCalendar() {
                                 >
                                     Beginn
                                 </label>
+
                                 <input
                                     id="event-start"
                                     name="start"
                                     type="time"
                                     required
-                                    defaultValue={
-                                        editingEvent?.start ?? "09:00"
-                                    }
+                                    defaultValue={editingEvent?.start ?? "09:00"}
                                     className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                                 />
                             </div>
+
                             <div className="space-y-1.5">
                                 <label
                                     htmlFor="event-end"
@@ -487,6 +585,7 @@ export function EventCalendar() {
                                 >
                                     Ende
                                 </label>
+
                                 <input
                                     id="event-end"
                                     name="end"
@@ -505,6 +604,7 @@ export function EventCalendar() {
                             >
                                 Ort
                             </label>
+
                             <input
                                 id="event-location"
                                 name="location"
@@ -522,6 +622,7 @@ export function EventCalendar() {
                             >
                                 Abbrechen
                             </button>
+
                             <button
                                 type="submit"
                                 className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"

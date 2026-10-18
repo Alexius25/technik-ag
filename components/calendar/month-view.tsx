@@ -1,7 +1,9 @@
+
 import { formatDate, dateKey } from "@/lib/date-utils";
 import { CalendarEvent, weekdays } from "./types";
-import { eventCard } from "./event-card";
-import { categoryDots } from "./style";
+import { getWeekSegments } from "./week-segments";
+import { getUniqueEvents } from "./event-utils";
+import EventBar from "./event-bar";
 
 export default function CalendarMonthView({
     currentDate,
@@ -16,84 +18,118 @@ export default function CalendarMonthView({
     setSelectedEvent: (event: CalendarEvent) => void;
     monthDays: Date[];
 }) {
+    const weeks: Date[][] = [];
+
+    for (let i = 0; i < monthDays.length; i += 7) {
+        weeks.push(monthDays.slice(i, i + 7));
+    }
+
+    const events = getUniqueEvents(monthDays, eventsForDate);
+
     return (
         <div className="overflow-hidden rounded-xl border">
+            {/* Weekday headers */}
             <div className="grid grid-cols-7 border-b bg-accent/30">
                 {weekdays.map((day) => (
                     <div
                         key={day}
-                        className="py-3 text-center text-xs font-medium text-muted-foreground sm:text-sm"
+                        className="border-r py-3 text-center text-[10px] font-medium text-muted-foreground last:border-r-0 sm:text-sm"
                     >
                         {day}
                     </div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-7">
-                {monthDays.map((date) => {
-                    const isCurrentMonth =
-                        date.getMonth() === currentDate.getMonth();
-                    const isToday = dateKey(date) === dateKey(new Date());
-                    const dayEvents = eventsForDate(date);
+            {/* Calendar weeks */}
+            {weeks.map((week) => {
+                const segments = getWeekSegments(events, week, {
+                    fixedSevenDayWeek: true,
+                });
 
-                    return (
-                        <div
-                            key={dateKey(date)}
-                            className={`min-h-24 border-r border-b p-1.5 sm:min-h-32 sm:p-2 ${
-                                !isCurrentMonth ? "bg-accent/20" : ""
-                            }`}
-                        >
-                            <button
-                                type="button"
-                                onClick={() => openNewEvent(dateKey(date))}
-                                aria-label={`Termin am ${formatDate(date)}`}
-                                className={`mb-1 flex size-7 items-center justify-center rounded-full text-xs transition hover:bg-accent sm:size-8 sm:text-sm ${
-                                    isToday
-                                        ? "bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
-                                        : isCurrentMonth
-                                          ? "text-foreground"
-                                          : "text-muted-foreground"
-                                }`}
-                            >
-                                {date.getDate()}
-                            </button>
+                const laneCount = Math.max(
+                    0,
+                    ...segments.map((segment) => segment.lane + 1)
+                );
 
-                            <div className="space-y-1">
-                                {dayEvents.slice(0, 2).map((event) => (
-                                    <div
-                                        key={event.id}
-                                        className="hidden sm:block"
-                                    >
-                                        {eventCard(
-                                            event,
-                                            true,
-                                            setSelectedEvent
-                                        )}
-                                    </div>
-                                ))}
-                                {dayEvents.slice(0, 3).map((event) => (
+                const eventAreaHeight = laneCount * 25;
+                const rowHeight = Math.max(112, 40 + eventAreaHeight);
+
+                return (
+                    <div
+                        key={dateKey(week[0])}
+                        className="relative grid grid-cols-7 border-b last:border-b-0"
+                        style={{
+                            minHeight: `${rowHeight}px`,
+                        }}
+                    >
+                        {/* Day cells: continuous borders */}
+                        {week.map((date, dayIndex) => {
+                            const isCurrentMonth =
+                                date.getMonth() === currentDate.getMonth() &&
+                                date.getFullYear() ===
+                                    currentDate.getFullYear();
+
+                            const isToday =
+                                dateKey(date) === dateKey(new Date());
+
+                            return (
+                                <div
+                                    key={dateKey(date)}
+                                    className={`relative min-w-0 border-r p-1 sm:p-2 ${
+                                        dayIndex === 6 ? "border-r-0" : ""
+                                    } ${
+                                        !isCurrentMonth
+                                            ? "bg-accent/20"
+                                            : ""
+                                    }`}
+                                    style={{
+                                        gridColumn: dayIndex + 1,
+                                        gridRow: 1,
+                                        minHeight: `${rowHeight}px`,
+                                    }}
+                                >
                                     <button
-                                        key={`mobile-${event.id}`}
                                         type="button"
-                                        onClick={() => setSelectedEvent(event)}
-                                        aria-label={event.title}
-                                        className={`mx-auto block size-2 rounded-full sm:hidden ${
-                                            categoryDots[event.category]
+                                        onClick={() =>
+                                            openNewEvent(dateKey(date))
+                                        }
+                                        aria-label={`Termin am ${formatDate(date)}`}
+                                        className={`relative z-10 flex size-7 items-center justify-center rounded-full text-xs transition hover:bg-accent sm:size-8 sm:text-sm ${
+                                            isToday
+                                                ? "bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
+                                                : isCurrentMonth
+                                                  ? "text-foreground"
+                                                  : "text-muted-foreground"
                                         }`}
-                                    />
-                                ))}
-                                {dayEvents.length > 2 && (
-                                    <p className="hidden px-1 text-xs text-muted-foreground sm:block">
-                                        +{dayEvents.length - 2} weitere
-                                    </p>
-                                )}
-                            </div>
+                                    >
+                                        {date.getDate()}
+                                    </button>
+                                </div>
+                            );
+                        })}
+
+                        {/* Event bars, positioned below the day numbers */}
+                        <div
+                            className="pointer-events-none absolute inset-x-0 top-10 grid grid-cols-7"
+                            style={{
+                                gridTemplateRows: `repeat(${Math.max(
+                                    1,
+                                    laneCount
+                                )}, 25px)`,
+                            }}
+                        >
+                            {segments.map((segment) => (
+                                <EventBar
+                                    key={`${segment.event.id}-${dateKey(week[0])}`}
+                                    segment={segment}
+                                    setSelectedEvent={setSelectedEvent}
+                                    classNamePrefix="pointer-events-auto mx-0.5 my-0.5 block min-w-0 self-start overflow-hidden px-1 py-1 text-left text-[10px] font-medium leading-tight transition hover:opacity-80 sm:mx-1 sm:px-2 sm:text-xs"
+                                />
+                            ))}
                         </div>
-                    );
-                })}
-            </div>
+                    </div>
+                );
+            })}
         </div>
     );
 }
-
-
