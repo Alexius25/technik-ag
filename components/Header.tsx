@@ -39,6 +39,10 @@ const navItems: NavItem[] = [
       { label: "Adminbereich", href: "/admin" },
     ],
   },
+  {
+    label: "Hauptbereich",
+    children: [{ label: "Dashboard", href: "/dashboard" }],
+  }
 ];
 
 function hasAccess(
